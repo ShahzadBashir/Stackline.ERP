@@ -5,7 +5,9 @@ using Microsoft.OpenApi;
 using Stackline.API.Auth;
 using Stackline.API.Data;
 using Stackline.API.Data.Entities;
+using Stackline.API.Middleware;
 using Stackline.API.Tenants;
+using Stackline.API.Warehouses;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,6 +21,9 @@ builder.Services.AddScoped<IPasswordService, PasswordService>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<ITenantProvisioningService, TenantProvisioningService>();
+builder.Services.AddMemoryCache();
+builder.Services.AddScoped<ITenantContext, TenantContext>();
+builder.Services.AddScoped<ITenantConnectionResolver, TenantConnectionResolver>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -35,6 +40,15 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Secret"]!))
         };
     });
+
+builder.Services.AddDbContext<AppDbContext>((serviceProvider, options) =>
+{
+    var tenantContext = serviceProvider.GetRequiredService<ITenantContext>();
+    if (tenantContext.IsResolved)
+    {
+        options.UseNpgsql(tenantContext.ConnectionString);
+    }
+});
 
 builder.Services.AddAuthorization();
 
@@ -55,6 +69,17 @@ builder.Services.AddSwaggerGen(options =>
         {
             [new OpenApiSecuritySchemeReference("Bearer", document)] = []
         });
+});
+
+builder.Services.AddCors(option =>
+{
+    option.AddPolicy("AllowAngularDev", policy =>
+    {
+        policy.WithOrigins("http://localhost:4200")
+             .AllowAnyHeader()
+             .AllowAnyMethod()
+             .AllowCredentials();
+    });
 });
 
 var app = builder.Build();
@@ -104,12 +129,16 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseCors("AllowAngularDev");
+
 app.UseAuthentication();
+app.UseMiddleware<TenantResolutionMiddleware>();
 app.UseAuthorization();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
 app.MapTenantEndpoints();
 app.MapAuthEndpoints();
+app.MapWarehouseEndpoints();
 
 app.Run();

@@ -18,6 +18,12 @@ public class MasterDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        modelBuilder.Entity<GlobalUser>()
+        .HasOne(user => user.Tenant)
+        .WithMany(tenant => tenant.Users)
+        .HasForeignKey(user => user.TenantId)
+        .OnDelete(DeleteBehavior.Restrict);
+
         modelBuilder.Entity<Tenant>().HasIndex(t => t.CompanyName);
         modelBuilder.Entity<Tenant>().HasQueryFilter(t => !t.IsDeleted);
 

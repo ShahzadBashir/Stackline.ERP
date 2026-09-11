@@ -1,12 +1,19 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Stackline.API.Common;
 using Stackline.API.Data;
 using Stackline.API.Data.Entities;
+using Stackline.API.Tenants;
 
 namespace Stackline.API.Auth;
 
 public interface ITenantProvisioningService
 {
-    Task<Tenant> ProvisionTenantAsync(string companyName, string ownerFullName, string ownerEmail, string ownerPassword);
+    Task<Result<Tenant>> ProvisionTenantAsync(
+        string companyName,
+        string ownerFullName,
+        string ownerEmail,
+        string ownerPassword,
+        CancellationToken ct = default);
 }
 
 public class TenantProvisioningService : ITenantProvisioningService
@@ -22,11 +29,17 @@ public class TenantProvisioningService : ITenantProvisioningService
         _config = config;
     }
 
-    public async Task<Tenant> ProvisionTenantAsync(
-        string companyName, string ownerFullName, string ownerEmail, string ownerPassword)
+    public async Task<Result<Tenant>> ProvisionTenantAsync(
+        string companyName,
+        string ownerFullName,
+        string ownerEmail,
+        string ownerPassword,
+        CancellationToken ct = default)
     {
-        if (await _masterDb.GlobalUsers.AnyAsync(u => u.Email == ownerEmail))
-            throw new InvalidOperationException("A user with this email already exists.");
+        if (await _masterDb.GlobalUsers.IgnoreQueryFilters().AnyAsync(u => u.Email == ownerEmail, ct))
+        {
+            return Result<Tenant>.Failure(TenantErrors.OwnerEmailExists);
+        }
 
         var tenantId = Guid.NewGuid();
         var dbName = $"tenant_{tenantId:N}";
@@ -42,14 +55,12 @@ public class TenantProvisioningService : ITenantProvisioningService
             SubscriptionStatus = SubscriptionStatuses.Trial
         };
 
-        // We haven't built AppDbContext yet in this project, so tenant DB
-        // creation/migration is commented out for now - see note below.
-        // var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
-        // optionsBuilder.UseNpgsql(tenantConnectionString);
-        // await using (var tenantDb = new AppDbContext(optionsBuilder.Options))
-        // {
-        //     await tenantDb.Database.MigrateAsync();
-        // }
+        var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
+        optionsBuilder.UseNpgsql(tenantConnectionString);
+        await using (var tenantDb = new AppDbContext(optionsBuilder.Options))
+        {
+            await tenantDb.Database.MigrateAsync();
+        }
 
         _masterDb.Tenants.Add(tenant);
         _masterDb.GlobalUsers.Add(new GlobalUser
@@ -64,6 +75,6 @@ public class TenantProvisioningService : ITenantProvisioningService
 
         await _masterDb.SaveChangesAsync();
 
-        return tenant;
+        return Result<Tenant>.Success(tenant); ;
     }
 }

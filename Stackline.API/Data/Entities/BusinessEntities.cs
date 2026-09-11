@@ -1,0 +1,59 @@
+﻿namespace Stackline.API.Data.Entities;
+
+public class Category : BaseEntity
+{
+    public string Name { get; set; } = string.Empty;
+    public Guid? ParentCategoryId { get; set; }
+}
+
+public class Item : BaseEntity
+{
+    public string SKU { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public Guid CategoryId { get; set; }
+    public string UnitOfMeasure { get; set; } = "Pcs";
+    public decimal CostPrice { get; set; }
+    public decimal SalePrice { get; set; }
+    public int ReorderLevel { get; set; }
+}
+
+public class Warehouse : BaseEntity
+{
+    public string Name { get; set; } = string.Empty;
+    public string? Location { get; set; }
+}
+
+public class StockLevel : BaseEntity
+{
+    public Guid ItemId { get; set; }
+    public Guid WarehouseId { get; set; }
+    public decimal QuantityOnHand { get; set; }
+    public DateTime LastUpdated { get; set; } = DateTime.UtcNow;
+}
+
+public class StockMovement : BaseEntity
+{
+    public Guid ItemId { get; set; }
+    public Guid WarehouseId { get; set; }
+    public string MovementType { get; set; } = string.Empty; // PurchaseIn | SaleOut | AdjustmentIn | AdjustmentOut
+    public decimal Quantity { get; set; }
+    public string ReferenceType { get; set; } = string.Empty;
+    public Guid ReferenceId { get; set; }
+}
+
+public class Supplier : BaseEntity
+{
+    public string Name { get; set; } = string.Empty;
+    public string? ContactPerson { get; set; }
+    public string? Phone { get; set; }
+    public decimal OpeningBalance { get; set; }
+}
+
+public class Customer : BaseEntity
+{
+    public string Name { get; set; } = string.Empty;
+    public string? ContactPerson { get; set; }
+    public string? Phone { get; set; }
+    public decimal CreditLimit { get; set; }
+    public decimal OpeningBalance { get; set; }
+}
