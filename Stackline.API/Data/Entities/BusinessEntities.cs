@@ -57,3 +57,101 @@ public class Customer : BaseEntity
     public decimal CreditLimit { get; set; }
     public decimal OpeningBalance { get; set; }
 }
+
+public class Purchase : BaseEntity
+{
+    public string PurchaseNumber { get; set; } = string.Empty;
+
+    public Guid SupplierId { get; set; }
+
+    public Guid WarehouseId { get; set; }
+
+    public DateOnly PurchaseDate { get; set; }
+
+    public string? SupplierInvoiceNumber { get; set; }
+
+    public string? Notes { get; set; }
+
+    public string Status { get; set; } = "Draft";
+
+    public decimal TotalAmount { get; set; }
+
+    public DateTime? PostedAt { get; set; }
+
+    public Guid? PostedBy { get; set; }
+
+    public ICollection<PurchaseLine> Lines { get; set; } =
+        new List<PurchaseLine>();
+}
+
+public class PurchaseLine
+{
+    public Guid Id { get; set; }
+
+    public Guid PurchaseId { get; set; }
+
+    public Purchase Purchase { get; set; } = null!;
+
+    public Guid ItemId { get; set; }
+
+    public string SKU { get; set; } = string.Empty;
+
+    public string ItemName { get; set; } = string.Empty;
+
+    public string UnitOfMeasure { get; set; } = string.Empty;
+
+    public decimal Quantity { get; set; }
+
+    public decimal UnitCost { get; set; }
+
+    public decimal LineTotal { get; set; }
+}
+
+public class Sale : BaseEntity
+{
+    public string SaleNumber { get; set; } = string.Empty;
+
+    public Guid CustomerId { get; set; }
+
+    public Guid WarehouseId { get; set; }
+
+    public DateOnly SaleDate { get; set; }
+
+    public string? Notes { get; set; }
+
+    public string Status { get; set; } = "Draft";
+
+    public decimal TotalAmount { get; set; }
+
+    public decimal AmountPaid { get; set; }
+
+    public DateTime? PostedAt { get; set; }
+
+    public Guid? PostedBy { get; set; }
+
+    public ICollection<SaleLine> Lines { get; set; } =
+        new List<SaleLine>();
+}
+
+public class SaleLine
+{
+    public Guid Id { get; set; }
+
+    public Guid SaleId { get; set; }
+
+    public Sale Sale { get; set; } = null!;
+
+    public Guid ItemId { get; set; }
+
+    public string SKU { get; set; } = string.Empty;
+
+    public string ItemName { get; set; } = string.Empty;
+
+    public string UnitOfMeasure { get; set; } = string.Empty;
+
+    public decimal Quantity { get; set; }
+
+    public decimal UnitPrice { get; set; }
+
+    public decimal LineTotal { get; set; }
+}

@@ -1,4 +1,4 @@
-﻿using Stackline.API.Tenants;
+﻿using Stackline.API.Features.Tenants;
 
 namespace Stackline.API.Middleware;
 

@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Stackline.API.Auth;
 using Stackline.API.Data.Entities;
+using Stackline.API.Features.Auth;
 
 namespace Stackline.API.Data;
 public class MasterDbContext : DbContext
