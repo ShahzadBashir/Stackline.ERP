@@ -25,6 +25,12 @@ namespace Stackline.API.Data
 
         public DbSet<SaleLine> SaleLines => Set<SaleLine>();
 
+        public DbSet<CustomerReceipt> CustomerReceipts =>
+        Set<CustomerReceipt>();
+
+        public DbSet<SupplierPayment> SupplierPayments =>
+        Set<SupplierPayment>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Item>().HasIndex(i => i.SKU).IsUnique();
@@ -153,6 +159,82 @@ namespace Stackline.API.Data
                 entity.HasOne<Item>()
                     .WithMany()
                     .HasForeignKey(l => l.ItemId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<CustomerReceipt>(entity =>
+            {
+                entity.HasQueryFilter(r => !r.IsDeleted);
+
+                entity.Property(r => r.ReceiptNumber)
+                    .HasMaxLength(50);
+
+                entity.HasIndex(r => r.ReceiptNumber)
+                    .IsUnique();
+
+                entity.Property(r => r.Status)
+                    .HasMaxLength(20);
+
+                entity.Property(r => r.PaymentMethod)
+                    .HasMaxLength(30);
+
+                entity.Property(r => r.PaymentReference)
+                    .HasMaxLength(100);
+
+                entity.Property(r => r.Notes)
+                    .HasMaxLength(2000);
+
+                entity.Property(r => r.Amount)
+                    .HasPrecision(18, 2);
+
+                entity.HasIndex(r => new
+                {
+                    r.CustomerId,
+                    r.Status,
+                    r.ReceiptDate
+                });
+
+                entity.HasOne<Customer>()
+                    .WithMany()
+                    .HasForeignKey(r => r.CustomerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<SupplierPayment>(entity =>
+            {
+                entity.HasQueryFilter(payment => !payment.IsDeleted);
+
+                entity.Property(payment => payment.PaymentNumber)
+                    .HasMaxLength(50);
+
+                entity.HasIndex(payment => payment.PaymentNumber)
+                    .IsUnique();
+
+                entity.Property(payment => payment.Status)
+                    .HasMaxLength(20);
+
+                entity.Property(payment => payment.PaymentMethod)
+                    .HasMaxLength(30);
+
+                entity.Property(payment => payment.PaymentReference)
+                    .HasMaxLength(100);
+
+                entity.Property(payment => payment.Notes)
+                    .HasMaxLength(2000);
+
+                entity.Property(payment => payment.Amount)
+                    .HasPrecision(18, 2);
+
+                entity.HasIndex(payment => new
+                {
+                    payment.SupplierId,
+                    payment.Status,
+                    payment.PaymentDate
+                });
+
+                entity.HasOne<Supplier>()
+                    .WithMany()
+                    .HasForeignKey(payment => payment.SupplierId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
         }

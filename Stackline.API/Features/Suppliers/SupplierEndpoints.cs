@@ -4,6 +4,9 @@ using Stackline.API.Common;
 using Stackline.API.Data;
 using Stackline.API.Data.Entities;
 using Stackline.API.Features.Auth;
+using Stackline.API.Features.Purchases;
+using Stackline.API.Features.Statements;
+using Stackline.API.Features.SupplierPayments;
 using Stackline.API.Features.Suppliers.Dtos;
 
 namespace Stackline.API.Features.Suppliers;
@@ -95,10 +98,13 @@ public static class SupplierEndpoints
             Guid id,
             UpdateSupplierRequest request,
             AppDbContext db,
+            ICurrentUserService currentUser,
             CancellationToken ct) =>
         {
-            var supplier = await db.Suppliers
-                .FirstOrDefaultAsync(s => s.Id == id, ct);
+            await using var transaction =
+                await db.Database.BeginTransactionAsync(ct);
+
+            var supplier = await LockSupplierAsync(id, db, ct);
 
             if (supplier is null)
             {
@@ -114,14 +120,40 @@ public static class SupplierEndpoints
                     .ToHttpResult(value => Results.Ok(value));
             }
 
+            if (request.OpeningBalance != supplier.OpeningBalance)
+            {
+                var hasPostedPurchases = await db.Purchases
+                    .IgnoreQueryFilters()
+                    .AnyAsync(
+                        purchase => purchase.SupplierId == id &&
+                                    purchase.Status == PurchaseStatuses.Posted,
+                        ct);
+
+                var hasPostedPayments = await db.SupplierPayments
+                    .IgnoreQueryFilters()
+                    .AnyAsync(
+                        payment => payment.SupplierId == id &&
+                                   payment.Status == SupplierPaymentStatuses.Posted,
+                        ct);
+
+                if (hasPostedPurchases || hasPostedPayments)
+                {
+                    return Result<SupplierResponse>
+                        .Failure(SupplierErrors.OpeningBalanceLocked)
+                        .ToHttpResult(value => Results.Ok(value));
+                }
+            }
+
             supplier.Name = request.Name.Trim();
             supplier.ContactPerson = TrimOrNull(request.ContactPerson);
             supplier.Phone = TrimOrNull(request.Phone);
             supplier.OpeningBalance = request.OpeningBalance;
             supplier.IsActive = request.IsActive;
             supplier.UpdatedAt = DateTime.UtcNow;
+            supplier.UpdatedBy = currentUser.UserId;
 
             await db.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
 
             return Result<SupplierResponse>
                 .Success(ToResponse(supplier))
@@ -135,10 +167,13 @@ public static class SupplierEndpoints
         group.MapDelete("/{id:guid}", async (
             Guid id,
             AppDbContext db,
+            ICurrentUserService currentUser,
             CancellationToken ct) =>
         {
-            var supplier = await db.Suppliers
-                .FirstOrDefaultAsync(s => s.Id == id, ct);
+            await using var transaction =
+                await db.Database.BeginTransactionAsync(ct);
+
+            var supplier = await LockSupplierAsync(id, db, ct);
 
             if (supplier is null)
             {
@@ -147,11 +182,36 @@ public static class SupplierEndpoints
                     .ToHttpResult(_ => Results.NoContent());
             }
 
+            var hasPurchases = await db.Purchases
+                .IgnoreQueryFilters()
+                .AnyAsync(
+                    purchase => purchase.SupplierId == id &&
+                        (!purchase.IsDeleted ||
+                         purchase.Status == PurchaseStatuses.Posted),
+                    ct);
+
+            var hasPayments = await db.SupplierPayments
+                .IgnoreQueryFilters()
+                .AnyAsync(
+                    payment => payment.SupplierId == id &&
+                        (!payment.IsDeleted ||
+                         payment.Status == SupplierPaymentStatuses.Posted),
+                    ct);
+
+            if (hasPurchases || hasPayments || supplier.OpeningBalance != 0)
+            {
+                return Result<Guid>
+                    .Failure(SupplierErrors.InUse)
+                    .ToHttpResult(_ => Results.NoContent());
+            }
+
             supplier.IsDeleted = true;
             supplier.IsActive = false;
             supplier.UpdatedAt = DateTime.UtcNow;
+            supplier.UpdatedBy = currentUser.UserId;
 
             await db.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
 
             return Result<Guid>
                 .Success(id)
@@ -160,6 +220,36 @@ public static class SupplierEndpoints
         .RequireAuthorization(new AuthorizeAttribute
         {
             Roles = Roles.Owner
+        });
+
+        group.MapGet("/{id:guid}/balance", async (
+            Guid id,
+            ISupplierBalanceService balanceService,
+            CancellationToken ct) =>
+        {
+            var result = await balanceService.GetAsync(id, ct);
+
+            return result.ToHttpResult(value => Results.Ok(value));
+        });
+
+        group.MapGet("/{id:guid}/statement", async (
+            Guid id,
+            DateOnly fromDate,
+            DateOnly toDate,
+            int? page,
+            int? pageSize,
+            IAccountStatementService statementService,
+            CancellationToken ct) =>
+        {
+            var result = await statementService.GetSupplierAsync(
+                id,
+                fromDate,
+                toDate,
+                page ?? 1,
+                pageSize ?? 20,
+                ct);
+
+            return result.ToHttpResult(value => Results.Ok(value));
         });
 
         return app;
@@ -176,4 +266,23 @@ public static class SupplierEndpoints
         supplier.OpeningBalance,
         supplier.IsActive,
         supplier.CreatedAt);
+
+    private static async Task<Supplier?> LockSupplierAsync(
+    Guid id,
+    AppDbContext db,
+    CancellationToken ct)
+    {
+        var suppliers = await db.Suppliers
+            .FromSqlInterpolated($"""
+            SELECT *
+            FROM "Suppliers"
+            WHERE "Id" = {id}
+              AND NOT "IsDeleted"
+            FOR UPDATE
+            """)
+            .IgnoreQueryFilters()
+            .ToListAsync(ct);
+
+        return suppliers.SingleOrDefault();
+    }
 }

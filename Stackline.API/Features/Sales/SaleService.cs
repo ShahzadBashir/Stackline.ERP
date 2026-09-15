@@ -3,6 +3,7 @@ using Stackline.API.Common;
 using Stackline.API.Data;
 using Stackline.API.Data.Entities;
 using Stackline.API.Features.Auth;
+using Stackline.API.Features.Customers;
 using Stackline.API.Features.Sales.Dtos;
 
 namespace Stackline.API.Features.Sales;
@@ -11,6 +12,7 @@ public sealed class SaleService : ISaleService
 {
     private readonly AppDbContext _db;
     private readonly ICurrentUserService _currentUser;
+    private readonly ICustomerBalanceService _balanceService;
 
     private const decimal MaxQuantity = 999999999999999.999m;
     private const decimal MaxUnitPrice = 99999999999999.9999m;
@@ -23,10 +25,12 @@ public sealed class SaleService : ISaleService
 
     public SaleService(
         AppDbContext db,
-        ICurrentUserService currentUser)
+        ICurrentUserService currentUser,
+        ICustomerBalanceService balanceService)
     {
         _db = db;
         _currentUser = currentUser;
+        _balanceService = balanceService;
     }
 
     public async Task<Result<SaleResponse>> CreateAsync(
@@ -223,30 +227,20 @@ public sealed class SaleService : ISaleService
         var unpaidAmount =
             validated.TotalAmount - sale.AmountPaid;
 
-        // Fully paid sales do not increase outstanding credit.
         if (unpaidAmount > 0)
         {
+            var balanceResult = await _balanceService.GetAsync(sale.CustomerId,ct);
+
+            if (!balanceResult.IsSuccess)
+            {
+                return Result<SaleResponse>.Failure(balanceResult.Error);
+            }
+
             decimal resultingBalance;
 
             try
             {
-                // Include every posted sale, even if it was incorrectly
-                // soft-deleted elsewhere, so debt is not silently lost.
-                var existingUnpaid = await _db.Sales
-                    .IgnoreQueryFilters()
-                    .Where(existing =>
-                        existing.CustomerId == sale.CustomerId &&
-                        existing.Status == SaleStatuses.Posted)
-                    .SumAsync(
-                        existing =>
-                            (decimal?)(existing.TotalAmount -
-                                       existing.AmountPaid),
-                        ct) ?? 0m;
-
-                resultingBalance = checked(
-                    validated.Customer.OpeningBalance +
-                    existingUnpaid +
-                    unpaidAmount);
+                resultingBalance = checked(balanceResult.Value.OutstandingBalance + unpaidAmount);
             }
             catch (OverflowException)
             {
@@ -254,7 +248,7 @@ public sealed class SaleService : ISaleService
                     SaleErrors.AmountTooLarge);
             }
 
-            if (resultingBalance > validated.Customer.CreditLimit)
+            if (resultingBalance > balanceResult.Value.CreditLimit)
             {
                 return Result<SaleResponse>.Failure(
                     SaleErrors.CreditLimitExceeded);

@@ -6,11 +6,14 @@ using Stackline.API.Data;
 using Stackline.API.Data.Entities;
 using Stackline.API.Features.Auth;
 using Stackline.API.Features.Categories;
+using Stackline.API.Features.CustomerReceipts;
 using Stackline.API.Features.Customers;
 using Stackline.API.Features.Inventory;
 using Stackline.API.Features.Items;
 using Stackline.API.Features.Purchases;
 using Stackline.API.Features.Sales;
+using Stackline.API.Features.Statements;
+using Stackline.API.Features.SupplierPayments;
 using Stackline.API.Features.Suppliers;
 using Stackline.API.Features.Tenants;
 using Stackline.API.Features.Warehouses;
@@ -33,6 +36,11 @@ builder.Services.AddScoped<ITenantContext, TenantContext>();
 builder.Services.AddScoped<ITenantConnectionResolver, TenantConnectionResolver>();
 builder.Services.AddScoped<IPurchaseService, PurchaseService>();
 builder.Services.AddScoped<ISaleService, SaleService>();
+builder.Services.AddScoped<ICustomerBalanceService, CustomerBalanceService>();
+builder.Services.AddScoped<ICustomerReceiptService, CustomerReceiptService>();
+builder.Services.AddScoped<ISupplierBalanceService, SupplierBalanceService>();
+builder.Services.AddScoped<ISupplierPaymentService, SupplierPaymentService>();
+builder.Services.AddScoped<IAccountStatementService, AccountStatementService>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -156,5 +164,7 @@ app.MapPurchaseEndpoints();
 app.MapInventoryEndpoints();
 app.MapCustomerEndpoints();
 app.MapSaleEndpoints();
+app.MapCustomerReceiptEndpoints();
+app.MapSupplierPaymentEndpoints();
 
 app.Run();

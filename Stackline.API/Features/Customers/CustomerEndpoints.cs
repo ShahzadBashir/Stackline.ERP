@@ -4,8 +4,10 @@ using Stackline.API.Common;
 using Stackline.API.Data;
 using Stackline.API.Data.Entities;
 using Stackline.API.Features.Auth;
+using Stackline.API.Features.CustomerReceipts;
 using Stackline.API.Features.Customers.Dtos;
 using Stackline.API.Features.Sales;
+using Stackline.API.Features.Statements;
 
 namespace Stackline.API.Features.Customers;
 
@@ -135,7 +137,14 @@ public static class CustomerEndpoints
                                 sale.Status == SaleStatuses.Posted,
                         ct);
 
-                if (hasPostedSales)
+                var hasPostedReceipts = await db.CustomerReceipts
+                    .IgnoreQueryFilters()
+                    .AnyAsync(
+                        receipt => receipt.CustomerId == id &&
+                                   receipt.Status == CustomerReceiptStatuses.Posted,
+                        ct);
+
+                if (hasPostedSales || hasPostedReceipts)
                 {
                     return Result<CustomerResponse>
                         .Failure(CustomerErrors.OpeningBalanceLocked)
@@ -189,7 +198,15 @@ public static class CustomerEndpoints
                         (!sale.IsDeleted || sale.Status == SaleStatuses.Posted),
                     ct);
 
-            if (hasSales || customer.OpeningBalance != 0)
+            var hasReceipts = await db.CustomerReceipts
+            .IgnoreQueryFilters()
+            .AnyAsync(
+                receipt => receipt.CustomerId == id &&
+                    (!receipt.IsDeleted ||
+                     receipt.Status == CustomerReceiptStatuses.Posted),
+                ct);
+
+            if (hasSales || hasReceipts || customer.OpeningBalance != 0)
             {
                 return Result<Guid>
                     .Failure(CustomerErrors.InUse)
@@ -213,6 +230,36 @@ public static class CustomerEndpoints
             Roles = Roles.Owner
         });
 
+
+        group.MapGet("/{id:guid}/balance", async (
+            Guid id,
+            ICustomerBalanceService balanceService,
+            CancellationToken ct) =>
+        {
+            var result = await balanceService.GetAsync(id, ct);
+
+            return result.ToHttpResult(value => Results.Ok(value));
+        });
+
+        group.MapGet("/{id:guid}/statement", async (
+            Guid id,
+            DateOnly fromDate,
+            DateOnly toDate,
+            int? page,
+            int? pageSize,
+            IAccountStatementService statementService,
+            CancellationToken ct) =>
+        {
+            var result = await statementService.GetCustomerAsync(
+                id,
+                fromDate,
+                toDate,
+                page ?? 1,
+                pageSize ?? 20,
+                ct);
+
+            return result.ToHttpResult(value => Results.Ok(value));
+        });
 
         return app;
     }

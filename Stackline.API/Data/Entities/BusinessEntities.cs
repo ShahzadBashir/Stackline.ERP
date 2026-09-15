@@ -155,3 +155,49 @@ public class SaleLine
 
     public decimal LineTotal { get; set; }
 }
+
+public class CustomerReceipt : BaseEntity
+{
+    public string ReceiptNumber { get; set; } = string.Empty;
+
+    public Guid CustomerId { get; set; }
+
+    public DateOnly ReceiptDate { get; set; }
+
+    public decimal Amount { get; set; }
+
+    public string PaymentMethod { get; set; } = "Cash";
+
+    public string? PaymentReference { get; set; }
+
+    public string? Notes { get; set; }
+
+    public string Status { get; set; } = "Draft";
+
+    public DateTime? PostedAt { get; set; }
+
+    public Guid? PostedBy { get; set; }
+}
+
+public class SupplierPayment : BaseEntity
+{
+    public string PaymentNumber { get; set; } = string.Empty;
+
+    public Guid SupplierId { get; set; }
+
+    public DateOnly PaymentDate { get; set; }
+
+    public decimal Amount { get; set; }
+
+    public string PaymentMethod { get; set; } = "Cash";
+
+    public string? PaymentReference { get; set; }
+
+    public string? Notes { get; set; }
+
+    public string Status { get; set; } = "Draft";
+
+    public DateTime? PostedAt { get; set; }
+
+    public Guid? PostedBy { get; set; }
+}
