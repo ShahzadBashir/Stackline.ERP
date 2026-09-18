@@ -13,6 +13,8 @@ using Stackline.API.Features.Items;
 using Stackline.API.Features.Purchases;
 using Stackline.API.Features.Sales;
 using Stackline.API.Features.Statements;
+using Stackline.API.Features.StockAdjustments;
+using Stackline.API.Features.StockTransfers;
 using Stackline.API.Features.SupplierPayments;
 using Stackline.API.Features.Suppliers;
 using Stackline.API.Features.Tenants;
@@ -41,6 +43,8 @@ builder.Services.AddScoped<ICustomerReceiptService, CustomerReceiptService>();
 builder.Services.AddScoped<ISupplierBalanceService, SupplierBalanceService>();
 builder.Services.AddScoped<ISupplierPaymentService, SupplierPaymentService>();
 builder.Services.AddScoped<IAccountStatementService, AccountStatementService>();
+builder.Services.AddScoped<IStockAdjustmentService, StockAdjustmentService>();
+builder.Services.AddScoped<IStockTransferService, StockTransferService>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -166,5 +170,7 @@ app.MapCustomerEndpoints();
 app.MapSaleEndpoints();
 app.MapCustomerReceiptEndpoints();
 app.MapSupplierPaymentEndpoints();
+app.MapStockAdjustmentEndpoints();
+app.MapStockTransferEndpoints();
 
 app.Run();

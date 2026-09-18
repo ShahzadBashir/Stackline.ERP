@@ -31,6 +31,18 @@ namespace Stackline.API.Data
         public DbSet<SupplierPayment> SupplierPayments =>
         Set<SupplierPayment>();
 
+        public DbSet<StockAdjustment> StockAdjustments =>
+            Set<StockAdjustment>();
+
+        public DbSet<StockAdjustmentLine> StockAdjustmentLines =>
+            Set<StockAdjustmentLine>();
+
+        public DbSet<StockTransfer> StockTransfers =>
+            Set<StockTransfer>();
+
+        public DbSet<StockTransferLine> StockTransferLines =>
+            Set<StockTransferLine>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Item>().HasIndex(i => i.SKU).IsUnique();
@@ -236,6 +248,188 @@ namespace Stackline.API.Data
                     .WithMany()
                     .HasForeignKey(payment => payment.SupplierId)
                     .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<StockAdjustment>(entity =>
+            {
+                entity.HasQueryFilter(adjustment => !adjustment.IsDeleted);
+
+                entity.Property(adjustment => adjustment.AdjustmentNumber)
+                    .HasMaxLength(50)
+                    .IsRequired();
+
+                entity.HasIndex(adjustment => adjustment.AdjustmentNumber)
+                    .IsUnique();
+
+                entity.Property(adjustment => adjustment.Reason)
+                    .HasMaxLength(50)
+                    .IsRequired();
+
+                entity.Property(adjustment => adjustment.Notes)
+                    .HasMaxLength(2000);
+
+                entity.Property(adjustment => adjustment.Status)
+                    .HasMaxLength(20)
+                    .IsRequired();
+
+                entity.HasIndex(adjustment => new
+                {
+                    adjustment.WarehouseId,
+                    adjustment.Status,
+                    adjustment.AdjustmentDate
+                });
+
+                entity.HasOne<Warehouse>()
+                    .WithMany()
+                    .HasForeignKey(adjustment => adjustment.WarehouseId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasMany(adjustment => adjustment.Lines)
+                    .WithOne(line => line.StockAdjustment)
+                    .HasForeignKey(line => line.StockAdjustmentId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.ToTable("StockAdjustments", table =>
+                {
+                    table.HasCheckConstraint(
+                        "CK_StockAdjustments_Status",
+                        "\"Status\" IN ('Draft', 'Posted')");
+                });
+            });
+
+            modelBuilder.Entity<StockAdjustmentLine>(entity =>
+            {
+                entity.Property(line => line.SKU)
+                    .IsRequired();
+
+                entity.Property(line => line.ItemName)
+                    .IsRequired();
+
+                entity.Property(line => line.UnitOfMeasure)
+                    .IsRequired();
+
+                entity.Property(line => line.Direction)
+                    .HasMaxLength(20)
+                    .IsRequired();
+
+                entity.Property(line => line.Quantity)
+                    .HasPrecision(18, 3);
+
+                entity.HasIndex(line => new
+                {
+                    line.StockAdjustmentId,
+                    line.ItemId
+                })
+                .IsUnique();
+
+                entity.HasOne<Item>()
+                    .WithMany()
+                    .HasForeignKey(line => line.ItemId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.ToTable("StockAdjustmentLines", table =>
+                {
+                    table.HasCheckConstraint(
+                        "CK_StockAdjustmentLines_Direction",
+                        "\"Direction\" IN ('Increase', 'Decrease')");
+
+                    table.HasCheckConstraint(
+                        "CK_StockAdjustmentLines_Quantity",
+                        "\"Quantity\" > 0");
+                });
+            });
+
+            modelBuilder.Entity<StockTransfer>(entity =>
+            {
+                entity.HasQueryFilter(transfer => !transfer.IsDeleted);
+
+                entity.Property(transfer => transfer.TransferNumber)
+                    .HasMaxLength(50)
+                    .IsRequired();
+
+                entity.HasIndex(transfer => transfer.TransferNumber)
+                    .IsUnique();
+
+                entity.Property(transfer => transfer.Notes)
+                    .HasMaxLength(2000);
+
+                entity.Property(transfer => transfer.Status)
+                    .HasMaxLength(20)
+                    .IsRequired();
+
+                entity.HasIndex(transfer => new
+                {
+                    transfer.SourceWarehouseId,
+                    transfer.Status,
+                    transfer.TransferDate
+                });
+
+                entity.HasIndex(transfer => new
+                {
+                    transfer.DestinationWarehouseId,
+                    transfer.Status,
+                    transfer.TransferDate
+                });
+
+                entity.HasOne<Warehouse>()
+                    .WithMany()
+                    .HasForeignKey(transfer => transfer.SourceWarehouseId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne<Warehouse>()
+                    .WithMany()
+                    .HasForeignKey(transfer => transfer.DestinationWarehouseId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasMany(transfer => transfer.Lines)
+                    .WithOne(line => line.StockTransfer)
+                    .HasForeignKey(line => line.StockTransferId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.ToTable("StockTransfers", table =>
+                {
+                    table.HasCheckConstraint(
+                        "CK_StockTransfers_Status",
+                        "\"Status\" IN ('Draft', 'Posted')");
+
+                    table.HasCheckConstraint(
+                        "CK_StockTransfers_DifferentWarehouses",
+                        "\"SourceWarehouseId\" <> \"DestinationWarehouseId\"");
+                });
+            });
+
+            modelBuilder.Entity<StockTransferLine>(entity =>
+            {
+                entity.Property(line => line.SKU)
+                    .IsRequired();
+
+                entity.Property(line => line.ItemName)
+                    .IsRequired();
+
+                entity.Property(line => line.UnitOfMeasure)
+                    .IsRequired();
+
+                entity.Property(line => line.Quantity)
+                    .HasPrecision(18, 3);
+
+                entity.HasIndex(line => new
+                {
+                    line.StockTransferId,
+                    line.ItemId
+                })
+                .IsUnique();
+
+                entity.HasOne<Item>()
+                    .WithMany()
+                    .HasForeignKey(line => line.ItemId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.ToTable("StockTransferLines", table =>
+                {
+                    table.HasCheckConstraint(
+                        "CK_StockTransferLines_Quantity",
+                        "\"Quantity\" > 0");
+                });
             });
         }
     }

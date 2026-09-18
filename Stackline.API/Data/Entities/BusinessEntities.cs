@@ -35,7 +35,9 @@ public class StockMovement : BaseEntity
 {
     public Guid ItemId { get; set; }
     public Guid WarehouseId { get; set; }
-    public string MovementType { get; set; } = string.Empty; // PurchaseIn | SaleOut | AdjustmentIn | AdjustmentOut
+    
+    // PurchaseIn | SaleOut | AdjustmentIn | AdjustmentOut | TransferIn | TransferOut
+    public string MovementType { get; set; } = string.Empty;
     public decimal Quantity { get; set; }
     public string ReferenceType { get; set; } = string.Empty;
     public Guid ReferenceId { get; set; }
@@ -200,4 +202,88 @@ public class SupplierPayment : BaseEntity
     public DateTime? PostedAt { get; set; }
 
     public Guid? PostedBy { get; set; }
+}
+
+public class StockAdjustment : BaseEntity
+{
+    public string AdjustmentNumber { get; set; } = string.Empty;
+
+    public Guid WarehouseId { get; set; }
+
+    public DateOnly AdjustmentDate { get; set; }
+
+    public string Reason { get; set; } = string.Empty;
+
+    public string? Notes { get; set; }
+
+    public string Status { get; set; } = "Draft";
+
+    public DateTime? PostedAt { get; set; }
+
+    public Guid? PostedBy { get; set; }
+
+    public ICollection<StockAdjustmentLine> Lines { get; set; } =
+        new List<StockAdjustmentLine>();
+}
+
+public class StockAdjustmentLine
+{
+    public Guid Id { get; set; }
+
+    public Guid StockAdjustmentId { get; set; }
+
+    public StockAdjustment StockAdjustment { get; set; } = null!;
+
+    public Guid ItemId { get; set; }
+
+    public string SKU { get; set; } = string.Empty;
+
+    public string ItemName { get; set; } = string.Empty;
+
+    public string UnitOfMeasure { get; set; } = string.Empty;
+
+    public string Direction { get; set; } = string.Empty;
+
+    public decimal Quantity { get; set; }
+}
+
+public class StockTransfer : BaseEntity
+{
+    public string TransferNumber { get; set; } = string.Empty;
+
+    public Guid SourceWarehouseId { get; set; }
+
+    public Guid DestinationWarehouseId { get; set; }
+
+    public DateOnly TransferDate { get; set; }
+
+    public string? Notes { get; set; }
+
+    public string Status { get; set; } = "Draft";
+
+    public DateTime? PostedAt { get; set; }
+
+    public Guid? PostedBy { get; set; }
+
+    public ICollection<StockTransferLine> Lines { get; set; } =
+        new List<StockTransferLine>();
+}
+
+public class StockTransferLine
+{
+    public Guid Id { get; set; }
+
+    public Guid StockTransferId { get; set; }
+
+    public StockTransfer StockTransfer { get; set; } = null!;
+
+    public Guid ItemId { get; set; }
+
+    public string SKU { get; set; } = string.Empty;
+
+    public string ItemName { get; set; } = string.Empty;
+
+    public string UnitOfMeasure { get; set; } = string.Empty;
+
+    public decimal Quantity { get; set; }
 }

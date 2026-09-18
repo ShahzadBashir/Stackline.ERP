@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Stackline.API.Data;
@@ -11,9 +12,11 @@ using Stackline.API.Data;
 namespace Stackline.API.Data.Migrations.Tenant
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260915164618_AddStockAdjustments")]
+    partial class AddStockAdjustments
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -679,117 +682,6 @@ namespace Stackline.API.Data.Migrations.Tenant
                     b.ToTable("StockMovements");
                 });
 
-            modelBuilder.Entity("Stackline.API.Data.Entities.StockTransfer", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("DestinationWarehouseId")
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
-
-                    b.Property<DateTime?>("PostedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("PostedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("SourceWarehouseId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<DateOnly>("TransferDate")
-                        .HasColumnType("date");
-
-                    b.Property<string>("TransferNumber")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TransferNumber")
-                        .IsUnique();
-
-                    b.HasIndex("DestinationWarehouseId", "Status", "TransferDate");
-
-                    b.HasIndex("SourceWarehouseId", "Status", "TransferDate");
-
-                    b.ToTable("StockTransfers", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_StockTransfers_DifferentWarehouses", "\"SourceWarehouseId\" <> \"DestinationWarehouseId\"");
-
-                            t.HasCheckConstraint("CK_StockTransfers_Status", "\"Status\" IN ('Draft', 'Posted')");
-                        });
-                });
-
-            modelBuilder.Entity("Stackline.API.Data.Entities.StockTransferLine", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ItemId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ItemName")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<decimal>("Quantity")
-                        .HasPrecision(18, 3)
-                        .HasColumnType("numeric(18,3)");
-
-                    b.Property<string>("SKU")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("StockTransferId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("UnitOfMeasure")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ItemId");
-
-                    b.HasIndex("StockTransferId", "ItemId")
-                        .IsUnique();
-
-                    b.ToTable("StockTransferLines", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_StockTransferLines_Quantity", "\"Quantity\" > 0");
-                        });
-                });
-
             modelBuilder.Entity("Stackline.API.Data.Entities.Supplier", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1040,38 +932,6 @@ namespace Stackline.API.Data.Migrations.Tenant
                     b.Navigation("StockAdjustment");
                 });
 
-            modelBuilder.Entity("Stackline.API.Data.Entities.StockTransfer", b =>
-                {
-                    b.HasOne("Stackline.API.Data.Entities.Warehouse", null)
-                        .WithMany()
-                        .HasForeignKey("DestinationWarehouseId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Stackline.API.Data.Entities.Warehouse", null)
-                        .WithMany()
-                        .HasForeignKey("SourceWarehouseId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Stackline.API.Data.Entities.StockTransferLine", b =>
-                {
-                    b.HasOne("Stackline.API.Data.Entities.Item", null)
-                        .WithMany()
-                        .HasForeignKey("ItemId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Stackline.API.Data.Entities.StockTransfer", "StockTransfer")
-                        .WithMany("Lines")
-                        .HasForeignKey("StockTransferId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("StockTransfer");
-                });
-
             modelBuilder.Entity("Stackline.API.Data.Entities.SupplierPayment", b =>
                 {
                     b.HasOne("Stackline.API.Data.Entities.Supplier", null)
@@ -1092,11 +952,6 @@ namespace Stackline.API.Data.Migrations.Tenant
                 });
 
             modelBuilder.Entity("Stackline.API.Data.Entities.StockAdjustment", b =>
-                {
-                    b.Navigation("Lines");
-                });
-
-            modelBuilder.Entity("Stackline.API.Data.Entities.StockTransfer", b =>
                 {
                     b.Navigation("Lines");
                 });
